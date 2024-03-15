@@ -40,11 +40,6 @@ ret3,th3 = cv2.threshold(blur,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
 # plot all the images and their histograms
 
 
-
-
-
-
-
 contours, hierarchy = cv2.findContours(image=th3, mode=cv2.RETR_TREE, method=cv2.CHAIN_APPROX_SIMPLE)
 
 # create an empty mask
@@ -61,8 +56,6 @@ for i, cnt in enumerate(contours):
 
 cv2.imshow("Img", corrected_img)
 
-
-"""contours, hierarchy = cv.findContours(np.array(th3, dtype=np.int32), cv.RETR_FLOODFILL, cv.CHAIN_APPROX_SIMPLE)
 
 #Draw the contours on the result image
 cv.drawContours(img, contours, -1, (0, 255, 0), 2)"""
@@ -141,12 +134,6 @@ for contour in contours:
         Total = Difference1 + Difference2
         print("Total difference: ", Total)
 
-"""        # Draw lines of symmetry within the ROI
-        cv2.line(resized_image, (x + roi_centroid_x, y), (x + roi_centroid_x, y + h), (255, 0, 0), 2)  # Vertical line
-        cv2.line(resized_image, (x, y + roi_centroid_y), (x + w, y + roi_centroid_y), (0, 255, 0), 2)  # Horizontal line
-        cv2.line(resized_image, (x, y), (x + w, y + h), (0, 0, 255), 2)  # Top-Left to Bottom-Right diagonal line
-        cv2.line(resized_image, (x + w, y), (x, y + h), (255, 255, 0), 2)  # Top-Right to Bottom-Left diagonal line
-"""
 # Display the image with contours and centroid dots
 cv2.imshow('Contours with Centroid', resized_image)
 cv2.waitKey(0)
@@ -156,33 +143,4 @@ cv2.destroyAllWindows()
 
 
 
-"""# Calculate asymmetry for each contour
-for contour in contours:
-    # Compute the area of the contour
-    area = cv2.contourArea(contour)
 
-    # Find the centroid of the contour
-    M = cv2.moments(contour)
-    if M["m00"] != 0:
-        centroid_x = int(M["m10"] / M["m00"])
-        centroid_y = int(M["m01"] / M["m00"])
-
-        # Define the boundaries of the ROI
-        x, y, w, h = cv2.boundingRect(contour)
-        roi = corrected_img[y:y+h, x:x+w]
-
-        # Compute the centroid of the ROI
-        roi_centroid_x = centroid_x - x
-        roi_centroid_y = centroid_y - y
-
-        # Draw lines of symmetry within the ROI
-        cv2.line(resized_image, (x + roi_centroid_x, y), (x + roi_centroid_x, y + h), (255, 0, 0), 2)  # Vertical line
-        cv2.line(resized_image, (x, y + roi_centroid_y), (x + w, y + roi_centroid_y), (0, 255, 0), 2)  # Horizontal line
-        cv2.line(resized_image, (x, y), (x + w, y + h), (0, 0, 255), 2)  # Top-Left to Bottom-Right diagonal line
-        cv2.line(resized_image, (x + w, y), (x, y + h), (255, 255, 0), 2)  # Top-Right to Bottom-Left diagonal line
-
-# Display the image with contours
-cv2.imshow('Contours', resized_image)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
-"""
