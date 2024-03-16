@@ -1,0 +1,124 @@
+import cv2
+import numpy as np
+import math
+
+# Load the image
+img = cv2.imread('Photos/ISIC_0351666M5.jpg')
+
+# Convert to grayscale
+gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+# Gamma correction function
+def gamma_correction(image, gamma=0.5):
+    corrected_image = np.uint8(((image / 255.0) ** gamma) * 255)
+    return corrected_image
+
+# Apply gamma correction
+gamma_value = 0.5
+corrected_img = gamma_correction(gray, gamma_value)
+
+# Thresholding
+ret1, th1 = cv2.threshold(corrected_img, 10, 255, cv2.THRESH_BINARY)
+ret2, th2 = cv2.threshold(corrected_img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+blur = cv2.GaussianBlur(corrected_img, (601, 601), 0)
+ret3, th3 = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+# Find contours
+contours, hierarchy = cv2.findContours(image=th3, mode=cv2.RETR_TREE, method=cv2.CHAIN_APPROX_SIMPLE)
+
+# Create a mask
+mask = np.zeros(corrected_img.shape[:2], dtype=np.uint8)
+
+# Loop through the contours
+for i, cnt in enumerate(contours):
+    if hierarchy[0][i][2] == -1:
+        if cv2.contourArea(cnt) > 100000:
+            cv2.drawContours(mask, [cnt], 0, (255), -1)
+
+# Display the original and masked images
+cv2.imshow("Original Image", corrected_img)
+cv2.imshow('Mask', mask)
+
+# Find contours again on the mask
+contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+# Select the first contour
+cnt = contours[0]
+
+# Find the minimum enclosing circle
+(x, y), radius = cv2.minEnclosingCircle(cnt)
+center = (int(x), int(y))
+radius = int(radius)
+
+# Draw the enclosing circle on the image
+cv2.circle(img, center, radius, (0, 255, 0), 2)
+cv2.imshow("Circle", img)
+
+print("Diameter: ", radius * 2)
+
+
+# Function to rescale the frame
+def rescaleFrame(frame, scale=0.1):
+    width = int(frame.shape[1] * scale)
+    height = int(frame.shape[0] * scale)
+    dimensions = (width, height)
+    return cv2.resize(frame, dimensions, interpolation=cv2.INTER_AREA)
+
+
+resized_image = rescaleFrame(img)
+cv2.imshow('Original Scaled', resized_image)
+
+
+# Function to calculate distance between two points
+def calculate_distance(x1, y1, x2, y2):
+    return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+
+
+# Callback function for mouse events
+def draw_line(event, x, y, flags, param):
+    global pt1, pt2, drawing, length, resized_image
+
+    if event == cv2.EVENT_LBUTTONDOWN:
+        if not drawing:
+            pt1 = (x, y)
+            drawing = True
+
+    elif event == cv2.EVENT_MOUSEMOVE:
+        if drawing:
+            # Update the line segment in real-time as the mouse is moved
+            clone = resized_image.copy()
+            cv2.line(clone, pt1, (x, y), (0, 255, 0), 2)
+            cv2.imshow('image', clone)
+
+    elif event == cv2.EVENT_LBUTTONUP:
+        pt2 = (x, y)
+        drawing = False
+        # Calculate the length of the line
+        length = calculate_distance(pt1[0], pt1[1], pt2[0], pt2[1])
+        print("Length of the line: {:.2f} pixels".format(length))
+        print("Actual diameter: {:.2f} mm", (radius * 2) / (length * 10))
+
+        # Draw the final line on the image
+        cv2.line(resized_image, pt1, pt2, (0, 255, 0), 2)
+        cv2.imshow('image', resized_image)
+
+
+# Create a window and bind the function to window
+cv2.namedWindow('image')
+cv2.setMouseCallback('image', draw_line)
+
+pt1 = (-1, -1)
+pt2 = (-1, -1)
+drawing = False
+length = 0
+
+while True:
+    cv2.imshow('image', resized_image)
+    key = cv2.waitKey(1) & 0xFF
+
+    # Press 'q' to exit the loop
+    if key == ord('q'):
+        break
+
+cv2.waitKey(0)
+cv2.destroyAllWindows()
