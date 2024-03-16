@@ -1,0 +1,179 @@
+import cv2
+import numpy as np
+
+img = cv2.imread('Photos/ISIC_0148465.jpg')
+
+def rescaleFrame(frame, scale=0.1):
+    width = int(frame.shape[1] * scale)
+    height = int(frame.shape[0] * scale)
+    dimensions = (width, height)
+    return cv2.resize(frame, dimensions, interpolation=cv2.INTER_AREA)
+
+resized_image = rescaleFrame(img)
+
+cv2.imshow('Original', resized_image)
+
+gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+assert img is not None, "File could not be read, check with os.path.exists()"
+
+# Gamma correction function
+def gamma_correction(image, gamma=0.9):
+    corrected_image = np.uint8(((image / 255.0) ** gamma) * 255)
+    return corrected_image
+
+# Apply gamma correction
+gamma_value = 0.9
+corrected_img = gamma_correction(gray, gamma_value)
+
+ret1, th1 = cv2.threshold(corrected_img, 10, 255, cv2.THRESH_BINARY)
+ret2, th2 = cv2.threshold(corrected_img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+blur = cv2.GaussianBlur(corrected_img, (301, 301), 0)
+ret3, th3 = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+# Find contours
+contours, hierarchy = cv2.findContours(image=th3, mode=cv2.RETR_TREE, method=cv2.CHAIN_APPROX_SIMPLE)
+
+# Create an empty mask
+mask = np.zeros(corrected_img.shape[:2], dtype=np.uint8)
+
+# Loop through the contours
+for i, cnt in enumerate(contours):
+    if hierarchy[0][i][2] == -1:
+        if cv2.contourArea(cnt) > 100000:
+            cv2.drawContours(mask, [cnt], 0, (255), -1)
+
+cv2.imshow("Corrected Image", corrected_img)
+
+resized_mask = rescaleFrame(mask)
+cv2.imshow('Resized Mask', resized_mask)
+
+replaced_image = cv2.bitwise_and(resized_image, resized_image, mask=resized_mask)
+cv2.imshow('Final', replaced_image)
+
+hsv_img = cv2.cvtColor(replaced_image, cv2.COLOR_BGR2HSV)
+
+lower_blue = np.array([100, 100, 50])  # Lower range for blue
+upper_blue = np.array([140, 255, 255])  # Upper range for blue
+mask_BG = cv2.inRange(hsv_img, lower_blue, upper_blue)
+cv2.imshow('Blue', mask_BG)
+
+low_B = np.array([10, 50, 50])
+upper_B = np.array([30, 255, 255])
+mask_lightbrown = cv2.inRange(hsv_img, low_B, upper_B)
+cv2.imshow('LightBrown', mask_lightbrown)
+
+low_W = np.array([0, 0, 200])
+upper_W = np.array([180, 30, 255])
+mask_W = cv2.inRange(hsv_img, low_W, upper_W)
+cv2.imshow('White', mask_W)
+
+low_R = np.array([160, 100, 20])
+upper_R = np.array([179, 255, 255])
+mask_R = cv2.inRange(hsv_img, low_R, upper_R)
+cv2.imshow('Red', mask_R)
+
+low_BL = np.array([0, 0, 0])
+upper_BL = np.array([350, 55, 100])
+mask_BL = cv2.inRange(hsv_img, low_BL, upper_BL)
+cv2.imshow('Black', mask_BL)
+
+lower_db = np.array([0, 10, 10])
+upper_db = np.array([30, 100, 20])
+mask_darkbrown = cv2.inRange(hsv_img, lower_db, upper_db)
+cv2.imshow('Darkbrown', mask_darkbrown)
+
+cv2.imshow('HSV', hsv_img)
+
+# Count white pixels in the mask
+if np.any(mask_W == 255):
+    print("White: 1")
+else:
+    print("White: 0")
+
+# Count dark brown pixels in the mask
+if np.any(mask_darkbrown == 255):
+    print("Dark brown: 1")
+else:
+    print("Dark brown: 0")
+
+# Count blue-gray pixels in the mask
+if np.any(mask_BG == 255):
+    print("Blue: 1")
+else:
+    print("Blue: 0")
+
+# Count black pixels before and after segmentation
+num_black_pixels_in_original = np.sum(resized_mask == 0)
+num_black_pixels_in_new = np.sum(mask_BL == 255)
+print("Black pixel number without mole:", num_black_pixels_in_original)
+print("Black pixel number with mole:", num_black_pixels_in_new)
+if num_black_pixels_in_new > num_black_pixels_in_original:
+    print("Black: 1")
+else:
+    print("Black: 0")
+
+# Count light brown pixels in the mask
+if np.any(mask_lightbrown == 255):
+    print("Light brown: 1")
+else:
+    print("Light brown: 0")
+
+# Count red pixels in the mask
+if np.any(mask_R == 255):
+    print("Red: 1")
+else:
+    print("Red: 0")
+
+cv2.waitKey(500)
+
+# Ask for user satisfaction
+response = input("Are you satisfied with the results? (yes/no): ").lower()
+
+# User input for corrections
+if response == "no":
+    print("You can change the results for the following masks:")
+    print("Black (0/1): ", end="")
+    mask_BL_value = int(input())
+    print("White (0/1): ", end="")
+    mask_W_value = int(input())
+    print("Blue (0/1): ", end="")
+    mask_BG_value = int(input())
+    print("Light brown (0/1): ", end="")
+    mask_lightbrown_value = int(input())
+    print("Red (0/1): ", end="")
+    mask_R_value = int(input())
+    print("Dark brown (0/1): ", end="")
+    mask_darkbrown_value = int(input())
+
+    if mask_BL_value == 0 or mask_BL_value == 1:
+        print("Black: ", mask_BL_value)
+    else:
+        print("Invalid value for Black mask.")
+    if mask_W_value == 0 or mask_W_value == 1:
+        print("White: ", mask_W_value)
+    else:
+        print("Invalid value for White mask.")
+    if mask_BG_value == 0 or mask_BG_value == 1:
+        print("Blue: ", mask_BG_value)
+    else:
+        print("Invalid value for Blue-gray mask.")
+    if mask_lightbrown_value == 0 or mask_lightbrown_value == 1:
+        print("Light brown: ", mask_lightbrown_value)
+    else:
+        print("Invalid value for Light brown mask.")
+    if mask_R_value == 0 or mask_R_value == 1:
+        print("Red: ", mask_R_value)
+    else:
+        print("Invalid value for Red mask.")
+    if mask_darkbrown_value == 0 or mask_darkbrown_value == 1:
+        print("Dark brown: ", mask_darkbrown_value)
+    else:
+        print("Invalid value for Dark brown.")
+elif response == "yes":
+    print("Thank you for using the program. Exiting...")
+else:
+    print("Invalid response. Please enter 'yes' or 'no'.")
+
+cv2.waitKey(0)
+cv2.destroyAllWindows()
