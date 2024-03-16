@@ -1,0 +1,89 @@
+import cv2
+import numpy as np
+
+# Read the image
+img = cv2.imread('Photos/ISIC_0341262.jpg')
+
+# Function to rescale the frame
+def rescaleFrame(frame, scale=0.1):
+    width = int(frame.shape[1] * scale)
+    height = int(frame.shape[0] * scale)
+    dimensions = (width, height)
+    return cv2.resize(frame, dimensions, interpolation=cv2.INTER_AREA)
+
+# Rescale the image
+resized_image = rescaleFrame(img)
+
+# Show the original image
+cv2.imshow('Original Image', resized_image)
+
+# Convert image to grayscale
+gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+# Gamma correction function
+def gamma_correction(image, gamma=12):
+    corrected_image = np.uint8(((image / 255.0) ** gamma) * 255)
+    return corrected_image
+
+# Apply gamma correction
+gamma_value = 12
+corrected_img = gamma_correction(gray, gamma_value)
+
+# Thresholding
+ret1, th1 = cv2.threshold(corrected_img, 10, 255, cv2.THRESH_BINARY)
+ret2, th2 = cv2.threshold(corrected_img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+blur = cv2.GaussianBlur(corrected_img, (711, 711), 0)
+ret3, th3 = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+# Find contours
+contours, hierarchy = cv2.findContours(image=th3, mode=cv2.RETR_TREE, method=cv2.CHAIN_APPROX_SIMPLE)
+
+# Create an empty mask
+mask = np.zeros(corrected_img.shape[:2], dtype=np.uint8)
+
+# Loop through the contours
+for i, cnt in enumerate(contours):
+    if hierarchy[0][i][2] == -1:
+        if cv2.contourArea(cnt) > 150000:
+            cv2.drawContours(mask, [cnt], 0, (255), -1)
+
+# Show the corrected image
+cv2.imshow("Corrected Image", corrected_img)
+
+# Rescale the mask
+resized_mask = rescaleFrame(mask)
+cv2.imshow('Resized Mask', resized_mask)
+
+# Find contours on the resized mask
+contours, hierarchy = cv2.findContours(resized_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+# Draw contours on the original image
+cv2.drawContours(resized_image, contours, -1, (255, 255, 0), 2)
+
+# Calculate parameters for each contour
+for cnt in contours:
+    area = cv2.contourArea(cnt)
+    perimeter = cv2.arcLength(cnt, True)
+    perimeter = round(perimeter, 4)
+    print('Area:', area)
+    print('Perimeter:', perimeter)
+
+    compactness = perimeter ** 2 / (4 * np.pi * area)  # measuring compactness
+    print('Compactness:', compactness)
+
+    circularity = 4 * np.pi * area / (perimeter ** 2)
+    print('Circularity:', circularity)
+
+    # Draw contours with area and perimeter annotations
+    x1, y1 = cnt[0, 0]
+    img_with_annotations = cv2.drawContours(resized_image, [cnt], -1, (255, 255, 0), 2)
+    cv2.putText(img_with_annotations, f'Area: {area}', (x1, y1), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+    cv2.putText(img_with_annotations, f'Perimeter: {perimeter}', (x1, y1 + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+
+    cv2.imshow('Contours with Annotations', img_with_annotations)
+    cv2.waitKey(0)
+
+# Show the image with contours and annotations
+cv2.imshow('Contours with Annotations', resized_image)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
